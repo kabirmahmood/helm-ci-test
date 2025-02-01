@@ -15,24 +15,25 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Install semver
-        run: |
-          wget https://github.com/Masterminds/semver/releases/download/v2.2.0/semver-linux-amd64 -O semver
-          chmod +x semver
-          sudo mv semver /usr/local/bin/
+      - name: Get next version
+        uses: reecetech/version-increment@2024.10.1
+        id: version
+        with:
+          scheme: semver
+          increment: patch
 
       - name: Increment version (semantic)
-        id: increment_version
+        id: increment_version 
+        env:
+          NEW_VERSION: ${{ steps.version.outputs.version  }}
         run: |
           VERSION=$(yq eval '.version' Chart.yaml)
-          NEW_VERSION=$(semver -i patch $VERSION) # Increment patch version, you can use 'minor' or 'major' as well
           yq eval '.version = "'$NEW_VERSION'"' Chart.yaml > Chart.yaml.tmp && mv Chart.yaml.tmp Chart.yaml
-          echo "::set-output name=new_version::$NEW_VERSION"
 
       - name: Commit version change
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: 'Automated version bump to ${{ steps.increment_version.outputs.new_version }}'
+          commit_message: 'Automated version bump to ${{ steps.version.outputs.version }}'
           file_pattern: Chart.yaml
           push_options: '--force-with-lease'
 
@@ -48,9 +49,9 @@ jobs:
       - name: Create GitHub release (optional)
         uses: release-drafter/release-drafter@v5
         with:
-          release: ${{ steps.increment_version.outputs.new_version }}
-          name: v${{ steps.increment_version.outputs.new_version }}
-          tag: v${{ steps.increment_version.outputs.new_version }}
+          release: ${{ steps.version.outputs.version }}
+          name: v${{ steps.version.outputs.version }}
+          tag: v${{ steps.version.outputs.version }}
           prerelease: false # Set to true for pre-releases
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
