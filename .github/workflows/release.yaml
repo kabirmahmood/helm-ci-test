@@ -28,7 +28,7 @@ jobs:
           NEW_VERSION: ${{ steps.version.outputs.version  }}
         run: |
           VERSION=$(yq eval '.version' Chart.yaml)
-          yq eval '.version = "'$NEW_VERSION'"' Chart.yaml > Chart.yaml.tmp && mv Chart.yaml.tmp Chart.yaml
+          yq eval '.version = "${NEW_VERSION}"' Chart.yaml > Chart.yaml.tmp && mv Chart.yaml.tmp Chart.yaml
 
       - name: Commit version change
         uses: stefanzweifel/git-auto-commit-action@v5
@@ -45,16 +45,12 @@ jobs:
         with:
           name: helm-chart
           path: ./*.tgz
-
-      - name: Create GitHub release (optional)
-        uses: release-drafter/release-drafter@v5
-        with:
-          release: ${{ steps.version.outputs.version }}
-          name: v${{ steps.version.outputs.version }}
-          tag: v${{ steps.version.outputs.version }}
-          prerelease: false # Set to true for pre-releases
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Tag branch
+        run: |
+          git tag v${{ steps.version.outputs.version }}
+          git push origin  v${{ steps.version.outputs.version }}
+      
 
       #- name: Publish Helm chart to a repository (optional)
       #  if: startsWith(github.ref, 'refs/tags/') # Only publish on tag creation (after a release)
