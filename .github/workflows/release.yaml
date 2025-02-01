@@ -25,7 +25,7 @@ jobs:
       - name: Increment version (semantic)
         id: increment_version 
         run: |
-          yq eval '.version = '"${{ steps.version.outputs.version }}"'' Chart.yaml > Chart.yaml.tmp && mv Chart.yaml.tmp Chart.yaml
+          yq  -i eval '.version = "${{ steps.version.outputs.version }}"' Chart.yaml
 
       - name: Commit version change
         uses: stefanzweifel/git-auto-commit-action@v5
