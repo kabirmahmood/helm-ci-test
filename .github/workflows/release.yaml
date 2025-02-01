@@ -1,0 +1,61 @@
+name: Helm Chart Version Increment and Package
+
+on:
+  push:
+    branches:
+      - main # or your main branch name
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Increment version (semantic)
+        id: increment_version
+        run: |
+          VERSION=$(yq eval '.version' Chart.yaml)
+          NEW_VERSION=$(semver -i patch $VERSION) # Increment patch version, you can use 'minor' or 'major' as well
+          yq eval '.version = "'$NEW_VERSION'"' Chart.yaml > Chart.yaml.tmp && mv Chart.yaml.tmp Chart.yaml
+          echo "::set-output name=new_version::$NEW_VERSION"
+
+      - name: Commit version change
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: 'Automated version bump to ${{ steps.increment_version.outputs.new_version }}'
+          file_pattern: Chart.yaml
+          push_options: '--force-with-lease'
+
+      - name: Package Helm chart
+        run: helm package .
+
+      - name: Upload Helm chart artifact (optional)
+        uses: actions/upload-artifact@v3
+        with:
+          name: helm-chart
+          path: *.tgz
+
+      - name: Create GitHub release (optional)
+        uses: release-drafter/release-drafter@v5
+        with:
+          release: ${{ steps.increment_version.outputs.new_version }}
+          name: v${{ steps.increment_version.outputs.new_version }}
+          tag: v${{ steps.increment_version.outputs.new_version }}
+          prerelease: false # Set to true for pre-releases
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      #- name: Publish Helm chart to a repository (optional)
+      #  if: startsWith(github.ref, 'refs/tags/') # Only publish on tag creation (after a release)
+      #  run: |
+      #    helm repo add my-repo <your_helm_repo_url> # replace with your helm repo
+      #    helm repo update
+      #    helm push my-chart-*.tgz my-repo
+      #  env:
+      #    # Add your Helm repository credentials as secrets:
+      #    HELM_USERNAME: ${{ secrets.HELM_USERNAME }}
+      #    HELM_PASSWORD: ${{ secrets.HELM_PASSWORD }}
